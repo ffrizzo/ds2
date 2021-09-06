@@ -1,0 +1,20 @@
+{
+    "name": "DS2",
+    "version": "v1.0.0",
+    "description": "Made to simplify the communication between arduino code and ECUs using DS2 k-line protocol ISO 9141",
+    "keywords": "esp32, arduino, k-line, iso-9141",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/handmade0octopus/ds2"
+    },
+    "authors": [
+        {
+            "name": "Maciej Loboda",
+            "email": ""
+        }
+    ],
+    "license": "MIT",
+    "homepage": "https://www.helloworld.org/",
+    "frameworks": "*",
+    "platforms": "*"
+}
