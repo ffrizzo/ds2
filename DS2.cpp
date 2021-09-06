@@ -31,7 +31,10 @@ boolean DS2::obtainValues(uint8_t command[], uint8_t data[], uint8_t respLen) {
 	writeData(command);
 	boolean result = readData(data);
 	blocking = block;
-	if(!result) clearRX();
+	if(!result) {
+		clearRX();
+	}
+
 	return (result && checkDataOk(data));
 }
 
@@ -39,33 +42,37 @@ boolean DS2::obtainValues(uint8_t command[], uint8_t data[], uint8_t respLen) {
 uint8_t DS2::sendCommand(uint8_t command[], uint8_t respLen) {
 	if(messageSend) {
 		return 0;
-	} else {
-		if(respLen != 0) responseLength = respLen;
-		messageSend = true;
-		clearRX();
-		return writeData(command);
+	} 
+	
+	if(respLen != 0) {
+		responseLength = respLen;
 	}
+
+	messageSend = true;
+	clearRX();
+	return writeData(command);
 }
 
 
 
 uint8_t DS2::receiveData(uint8_t data[]) {
 	uint32_t time;
-	if(messageSend) {
-		if(readData(data)) {
-			messageSend = false;
-			if(!checkDataOk(data) || echoLength == responseLength) {
-				return RECEIVE_BAD;
-			}
-			return RECEIVE_OK;
-		} else if((time = (micros() - timeStamp)) < timeout) {
-			return RECEIVE_WAITING;
-		} else {
-			messageSend = false;
-//			return time;
-			return RECEIVE_TIMEOUT;
+	if(!messageSend) {
+		return RECEIVE_WAITING;
+	}
+
+	if (readData(data)) {
+		messageSend = false;
+		if (!checkDataOk(data) || echoLength == responseLength) {
+			return RECEIVE_BAD;
 		}
-	} else return RECEIVE_WAITING;
+		return RECEIVE_OK;
+	} else if ((time = (micros() - timeStamp)) < timeout) {
+		return RECEIVE_WAITING;
+	} 
+
+	messageSend = false;
+	return RECEIVE_TIMEOUT;
 }
 
 void DS2::newCommand() {
@@ -77,9 +84,13 @@ void DS2::newCommand() {
 boolean DS2::compareCommands(uint8_t compA[], uint8_t compB[]) {
 	boolean same = true;
 	uint8_t length;
-	if(!kwp && compA[1] == compB[1]) length = compA[1];
-	else if(kwp && compA[3] == compB[3]) length = compA[3] + 5;
-	else return false;
+	if(!kwp && compA[1] == compB[1]) {
+		length = compA[1];
+	} else if(kwp && compA[3] == compB[3]) {
+		length = compA[3] + 5;
+	} else {
+		return false;
+	}
 	
 	for(uint8_t i = 0; i < length; i++) {
 		if(compA[i] != compB[i]) {
@@ -91,9 +102,14 @@ boolean DS2::compareCommands(uint8_t compA[], uint8_t compB[]) {
 }
 
 boolean DS2::copyCommand(uint8_t target[], uint8_t source[]) {
-	if(compareCommands(target, source)) return true;
+	if(compareCommands(target, source)) {
+		return true;
+	}
 	uint8_t length = source[1];
-	if(kwp) length = source[3] + 5;
+	if(kwp) {
+		length = source[3] + 5;
+	}
+
 	for(uint8_t i = 0; i < length; i++) {
 		target[i] = source[i];
 	}
@@ -113,11 +129,16 @@ uint8_t DS2::writeData(uint8_t data[], uint8_t length) {
 	if(length != 0) {
 		responseLength = length;
 		return writeToSerial(data, length);
-	} else return writeToSerial(data, echoLength);
+	} 
+	
+	return writeToSerial(data, echoLength);
 }
 
 uint8_t DS2::writeToSerial(uint8_t data[], uint8_t length) {
-	if(!slow) return serial.write(data, length);
+	if(!slow) {
+		return serial.write(data, length);
+	}
+
 	for(uint8_t i = 0; i < length; i++) {
 		delay(slowSend);
 		serial.write(data[i]);
@@ -133,16 +154,25 @@ boolean DS2::readCommand(uint8_t data[]) {
 			echoLength = serial.read();
 			data[1] = echoLength;
 			checksum ^= echoLength;
-			while(echoLength-2 > serial.available()) if(micros() - startTime > timeout) break;
+			while(echoLength-2 > serial.available()){
+				 if(micros() - startTime > timeout) {
+					 break;
+				 }
+			}
+
 			for(uint8_t i = 2; i < echoLength; i++) {
 				data[i] = serial.read();
 				checksum ^= data[i];
 			}
 			echoLength = 0;
-			if(checksum != 0) return false;
+			if(checksum != 0) {
+				return false;
+			}
+
 			device = data[0];
 			return true;
 	}
+
 	if(kwp && (blocking || serial.available() > 3)) {
 		uint32_t startTime = micros();
 		uint8_t checksum = serial.read();
@@ -151,37 +181,64 @@ boolean DS2::readCommand(uint8_t data[]) {
 		data[2] = serial.read();
 		data[3] = serial.read();
 		echoLength = data[3] + 5;
-		while(echoLength-4 > serial.available()) if(micros() - startTime > timeout) break;
+		while(echoLength-4 > serial.available()) {
+			if(micros() - startTime > timeout) {
+				break;
+			}
+		}
+
 		for(uint8_t i = 1; i < echoLength; i++) {
-			if(i > 3) data[i] = serial.read();
+			if(i > 3) {
+				data[i] = serial.read();
+			}
 			checksum ^= data[i];
 		}
 		echoLength = 0;
-		if(checksum != 0) return false;
+		if(checksum != 0) {
+			return false;
+		}
 		device = data[1];
 		return true;
 	}
+
 	return false;
 }
 
 boolean DS2::readData(uint8_t data[]) {
 	uint32_t startTime = micros();
-	if(!blocking && echoLength != 0 && serial.available() == 0) return false;
+	if(!blocking && echoLength != 0 && serial.available() == 0) {
+		return false;
+	}
+
 	if(!kwp && device != 0 && serial.available() > 0 && serial.peek() != device) {
 		serial.read();
 		return readData(data);
 	}
+
 	if(blocking || serial.available() > 2) {
 		data[0] = 0xFF;
 		uint32_t extraTimeout = 0;
 		uint8_t echoOffset = kwp ? 4 : 2;
-		if(echoLength + echoOffset > responseLength) responseLength = echoLength + echoOffset;
+		if(echoLength + echoOffset > responseLength) {
+			responseLength = echoLength + echoOffset;
+		}
+
 		data[echoLength + echoOffset] = 0xFF;
-		if(echoLength > 100) extraTimeout = 100000UL;
+		if(echoLength > 100) {
+			extraTimeout = 100000UL;
+		}
 		
 		for(uint8_t i = 0; i < responseLength; i++) {
-			while(serial.available() == 0) if(micros() - startTime > timeout + extraTimeout) break;
-			if(serial.available() == 0) break;
+			while(serial.available() == 0) {
+				if(micros() - startTime > timeout + extraTimeout) {
+					break;
+				}
+			}
+
+			if(serial.available() == 0) {
+				break;
+			}
+
 			data[i] = serial.read();
 			// Check Echo
 			if(i == echoOffset - 1) {
@@ -189,7 +246,9 @@ boolean DS2::readData(uint8_t data[]) {
 					echoLength = 0;
 				}
 			}
-			if(i == echoLength + echoOffset - 1) responseLength = data[i] + echoLength + (kwp ? 5 : 0);
+			if(i == echoLength + echoOffset - 1) {
+				responseLength = data[i] + echoLength + (kwp ? 5 : 0);
+			}
 		}
 		return checkData(data);
 	}
@@ -202,10 +261,12 @@ void DS2::clearData(uint8_t data[]) {
 	}
 }
 
-
 boolean DS2::checkData(uint8_t data[]) {
 	uint8_t echo = 0;
-	if(echoLength != 0) echo += (kwp ? data[3] + 5 : data[1]);
+	if(echoLength != 0) {
+		echo += (kwp ? data[3] + 5 : data[1]);
+	}
+	
 	uint8_t checksum = data[echo];
 	uint8_t checkLen = (kwp ? data[echo+3]+echo + 5 : data[echo+1]+echo);
 	for(uint8_t i = echo+1; i < checkLen; i++) {
@@ -225,16 +286,25 @@ boolean DS2::checkData(uint8_t data[]) {
 		commandsPerSecond = 1000000.0/(micros() - timeStamp);
 		timeStamp = micros();
 		return true;
-	} else return false;
+	} 
+	
+	return false;
 }
 
 boolean DS2::checkDataOk(uint8_t data[]) {
 	if(kwp) {
-		if(data[echoLength + 2] == device) return true;
-		else return false;
+		if(data[echoLength + 2] == device) {
+			return true;
+		}
+		
+		return false;
 	}
-	if(!ackByteCheck || data[echoLength+ackByteOffset] == ackByte) return true;
-	else return false;
+
+	if(!ackByteCheck || data[echoLength+ackByteOffset] == ackByte) {
+		return true;
+	}
+	
+	return false;
 }
 
 void DS2::setAckByte(uint8_t ack, uint8_t offset, boolean check) {
@@ -260,7 +330,9 @@ void DS2::clearRX() {
 	uint32_t startTime = micros();
 	while(serial.available() > 0) {
 		serial.read();
-		if(micros() - startTime > timeout) break;
+		if(micros() - startTime > timeout) {
+			break;
+		}
 	}
 }
 
@@ -270,7 +342,9 @@ void DS2::clearRX(uint8_t available, uint8_t length) {
 		for(uint8_t i = 0; i < length; i++) {
 			serial.read();
 		}
-		if(micros() - startTime > timeout) break;
+		if(micros() - startTime > timeout) {
+			break;
+		}
 	}
 }
 
@@ -329,8 +403,11 @@ uint64_t DS2::getUint64(uint8_t data[], uint8_t offset, boolean reverseEndianess
 	uint64_t result = 0;
 	uint8_t dataPoint = echoLength + offset + (kwp ? 4 : 3);
 	for(uint8_t i = 0; i < length && i < 8; i++) {
-		if(reverseEndianess) ((uint8_t *)&result)[i] = data[dataPoint+i];
-		else ((uint8_t *)&result)[length-1-i] = data[dataPoint+i];
+		if(reverseEndianess) {
+			((uint8_t *)&result)[i] = data[dataPoint+i];
+		}else {
+			((uint8_t *)&result)[length-1-i] = data[dataPoint+i];
+		}
 	}
 	return result;
 }
@@ -340,12 +417,16 @@ uint8_t DS2::getString(uint8_t data[], char string[], uint8_t offset, uint8_t le
 	uint8_t totalOffset = offset + echoLength + (kwp ? 4 : 3);
 	for(uint8_t i = totalOffset; i < length + totalOffset; i++) {
 		string[charPos++] = (char) data[i];
-		if(i + 1 == length + totalOffset) string[charPos++] = (char) 0;
+		if(i + 1 == length + totalOffset) {
+			string[charPos++] = (char) 0;
+		}
+
 		if(data[i] == 0) {
 			charPos--;
 			break;
 		}
 	}
+	
 	return charPos;
 }
 	
